@@ -3,7 +3,7 @@
  */
 
 const config = {
-  appName: "Amazon Product Studio",
+  appName: "ListifyAI",
   auth: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -13,43 +13,26 @@ const config = {
     url: process.env.NEXTAUTH_URL || "http://localhost:3000",
     webhook_url: process.env.WEBHOOK_URL || process.env.NEXTAUTH_URL || "http://localhost:3000",
   },
-  stripe: {
-    publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
-    secretKey: process.env.STRIPE_SECRET_KEY,
-    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+  razorpay: {
+    keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID,
+    keySecret: process.env.RAZORPAY_KEY_SECRET,
+    webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
     plans: {
-      basic: {
-        id: "basic",
-        name: "Basic Pack",
-        credits: 1000,
-        price: 500, // $5.00
-      },
-      standard: {
-        id: "standard",
-        name: "Standard Pack",
-        credits: 2000,
-        price: 1000, // $10.00
-      },
-      pro: {
-        id: "pro",
-        name: "Pro Pack",
-        credits: 4000,
-        price: 2000, // $20.00
-      },
-      business: {
-        id: "business",
-        name: "Business Pack",
-        credits: 10000,
-        price: 5000, // $50.00
-      }
+      starter: { id: "starter", name: "Starter", credits: 30, price: 499, planId: process.env.RAZORPAY_STARTER_PLAN_ID },
+      seller: { id: "seller", name: "Seller Pro", credits: 150, price: 1499, planId: process.env.RAZORPAY_SELLER_PLAN_ID },
+      agency: { id: "agency", name: "Agency", credits: 750, price: 4999, planId: process.env.RAZORPAY_AGENCY_PLAN_ID },
     }
   },
   ai: {
-    apiKey: process.env.MU_API_KEY,
+    apiKey: process.env.MUAPIAPP_API_KEY || process.env.MU_API_KEY,
     submitEndpoint: "https://api.muapi.ai/api/v1/nano-banana-2-edit",
     uploadEndpoint: "https://api.muapi.ai/api/v1/upload_file",
     pollEndpoint: (requestId) => `https://api.muapi.ai/api/v1/predictions/${requestId}/result`,
-    creditCost: 18,
+    creditCost: 1,
+  },
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY,
+    model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
   },
   db: {
     url: process.env.DATABASE_URL,

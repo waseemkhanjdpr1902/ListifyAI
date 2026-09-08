@@ -3,22 +3,13 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { BillingService } from "@/lib/services/billing";
 
-export async function POST(req) {
+export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "Unauthorized. Please sign in." }, { status: 401 });
-    }
-
-    const { planId } = await req.json();
-    if (!planId) {
-      return NextResponse.json({ error: "Missing planId parameter" }, { status: 400 });
-    }
-
-    const checkoutUrl = await BillingService.createCheckoutSession(session.user.id, planId);
-    return NextResponse.json({ url: checkoutUrl });
+    if (!session?.user?.id) return NextResponse.json({ error: "Please sign in first" }, { status: 401 });
+    const { planId } = await request.json();
+    return NextResponse.json(await BillingService.createSubscription(session.user.id, planId));
   } catch (error) {
-    console.error("Checkout route error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Checkout failed" }, { status: 400 });
   }
 }

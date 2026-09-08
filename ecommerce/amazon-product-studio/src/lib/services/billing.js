@@ -1,48 +1,53 @@
-import { stripe } from "../stripe";
+import crypto from "node:crypto";
 import config from "../config";
-import { UserService } from "./user";
+import { prisma } from "../prisma";
+
+function razorpayAuth() {
+  if (!config.razorpay.keyId || !config.razorpay.keySecret) throw new Error("Razorpay is not configured");
+  return `Basic ${Buffer.from(`${config.razorpay.keyId}:${config.razorpay.keySecret}`).toString("base64")}`;
+}
 
 export const BillingService = {
-  async createCheckoutSession(userId, planId) {
-    const plan = config.stripe.plans[planId];
-    if (!plan) throw new Error("Invalid plan selected");
-
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: `${config.stripe.plans[planId].name}`,
-              description: `Purchase ${plan.credits} credits to perform AI generations.`,
-            },
-            unit_amount: plan.price,
-          },
-          quantity: 1,
-        },
-      ],
-      mode: "payment",
-      success_url: `${config.auth.url}/pricing?success=true`,
-      cancel_url: `${config.auth.url}/pricing?canceled=true`,
-      metadata: { userId, credits: plan.credits.toString() },
+  async createSubscription(userId, planId) {
+    const plan = config.razorpay.plans[planId];
+    if (!plan?.planId) throw new Error("Selected Razorpay plan is not configured");
+    const response = await fetch("https://api.razorpay.com/v1/subscriptions", {
+      method: "POST",
+      headers: { Authorization: razorpayAuth(), "Content-Type": "application/json" },
+      body: JSON.stringify({ plan_id: plan.planId, total_count: 120, quantity: 1, customer_notify: 1, notes: { userId, planId } }),
+      cache: "no-store",
     });
-
-    return session.url;
+    const subscription = await response.json();
+    if (!response.ok) throw new Error(subscription?.error?.description || "Unable to create subscription");
+    await prisma.subscription.create({ data: { userId, planId, razorpaySubscriptionId: subscription.id, status: subscription.status || "created" } });
+    return { subscriptionId: subscription.id, keyId: config.razorpay.keyId, plan };
   },
-
-  async handleWebhook(body, signature) {
-    const event = stripe.webhooks.constructEvent(body, signature, config.stripe.webhookSecret);
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object;
-      const userId = session.metadata.userId;
-      const credits = parseInt(session.metadata.credits || "0", 10);
-
-      if (userId && credits > 0) {
-        await UserService.addCredits(userId, credits);
-        return { success: true, userId, credits };
-      }
+  verifyCheckoutSignature({ paymentId, subscriptionId, signature }) {
+    const expected = crypto.createHmac("sha256", config.razorpay.keySecret).update(`${paymentId}|${subscriptionId}`).digest("hex");
+    return Boolean(signature) && signature.length === expected.length && crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  },
+  verifyWebhook(rawBody, signature) {
+    const expected = crypto.createHmac("sha256", config.razorpay.webhookSecret).update(rawBody).digest("hex");
+    return Boolean(signature) && signature.length === expected.length && crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  },
+  async processWebhook(event) {
+    const entity = event.payload?.subscription?.entity;
+    const payment = event.payload?.payment?.entity;
+    const subscriptionId = entity?.id || payment?.subscription_id;
+    if (!subscriptionId) return;
+    const record = await prisma.subscription.findUnique({ where: { razorpaySubscriptionId: subscriptionId } });
+    if (!record) return;
+    const status = entity?.status || (event.event === "subscription.charged" ? "active" : undefined);
+    await prisma.subscription.update({ where: { id: record.id }, data: { ...(status ? { status } : {}), ...(entity?.current_end ? { currentPeriodEnd: new Date(entity.current_end * 1000) } : {}) } });
+    if (event.event === "subscription.charged" && payment?.id && record.lastCreditedChargeId !== payment.id) {
+      const plan = config.razorpay.plans[record.planId];
+      if (!plan) return;
+      await prisma.$transaction(async (tx) => {
+        const fresh = await tx.subscription.findUnique({ where: { id: record.id } });
+        if (fresh.lastCreditedChargeId === payment.id) return;
+        await tx.user.update({ where: { id: record.userId }, data: { credits: { increment: plan.credits } } });
+        await tx.subscription.update({ where: { id: record.id }, data: { lastCreditedChargeId: payment.id, status: "active" } });
+      });
     }
-    return { success: false };
-  }
+  },
 };

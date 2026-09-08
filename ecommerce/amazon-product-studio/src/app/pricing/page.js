@@ -1,121 +1,39 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import Script from "next/script";
+import { useSession, signIn } from "next-auth/react";
 import { useState } from "react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import { FaCheck, FaInfoCircle } from "react-icons/fa";
-import axios from "axios";
+import { FiCheck, FiLoader } from "react-icons/fi";
 import toast, { Toaster } from "react-hot-toast";
 
-const PLANS = [
-  { id: "basic", name: "Basic Pack", price: "$5", credits: 100, description: "Perfect for testing custom prompts and exploring styles." },
-  { id: "standard", name: "Standard Pack", price: "$10", credits: 250, description: "Ideal for regular creators wanting high resolution outputs." },
-  { id: "pro", name: "Professional Pack", price: "$20", credits: 600, description: "Designed for power users demanding batch exports and high speed.", popular: true },
-  { id: "business", name: "Business Pack", price: "$50", credits: 2000, description: "Maximum value pack for agency workflows and large volume generations." }
+const plans = [
+  { id: "starter", name: "Starter", price: 499, credits: 30, note: "For new and occasional sellers" },
+  { id: "seller", name: "Seller Pro", price: 1499, credits: 150, note: "For growing ecommerce stores", popular: true },
+  { id: "agency", name: "Agency", price: 4999, credits: 750, note: "For teams managing many products" },
 ];
 
-export default function Pricing() {
-  const { data: session, status } = useSession();
-  const [loadingPlan, setLoadingPlan] = useState(null);
-
-  const handleCheckout = async (planId) => {
-    if (status !== "authenticated") {
-      toast.error("You must sign in with Google to purchase credit packages.");
-      return;
-    }
-
-    setLoadingPlan(planId);
+export default function PricingPage() {
+  const { data: session, update } = useSession();
+  const [loading, setLoading] = useState("");
+  async function subscribe(planId) {
+    if (!session) return signIn("google");
+    if (!window.Razorpay) return toast.error("Payment checkout is still loading");
+    setLoading(planId);
     try {
-      const { data } = await axios.post("/api/checkout", { planId });
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error("No redirection URL returned");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.error || "Failed to trigger Stripe checkout session.");
-    } finally {
-      setLoadingPlan(null);
-    }
-  };
-
-  return (
-    <div className="flex min-h-dvh flex-col bg-bg-page select-none text-primary-text overflow-hidden">
-      <Toaster position="top-right" />
-      <Navbar />
-
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-12 sm:px-6 lg:px-8 flex flex-col gap-10 overflow-y-auto scrollbar-subtle items-center">
-        <div className="text-center space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full mb-1">
-            <FaInfoCircle className="text-primary text-xs" />
-            <span className="text-[10px] font-black text-primary uppercase tracking-widest">Pricing Plans</span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight uppercase">Buy Credits Packs</h1>
-          <p className="text-xs sm:text-sm text-secondary-text max-w-lg leading-relaxed">
-            Purchase flexible credit packages to perform high-resolution predictions. Keep all profits — we handle AI infrastructure.
-          </p>
-        </div>
-
-        {/* Pricing Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-5xl">
-          {PLANS.map((plan) => (
-            <div
-              key={plan.id}
-              className={`relative bg-bg-card border rounded-lg p-6 flex flex-col justify-between gap-6 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${
-                plan.popular ? "border-primary shadow-xl shadow-primary/5 scale-105" : "border-divider/50 shadow-md"
-              }`}
-            >
-              {plan.popular && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[9px] font-black uppercase px-3 py-1 rounded-full tracking-wider shadow">
-                  Most Popular
-                </span>
-              )}
-
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <h3 className="text-sm font-extrabold uppercase tracking-wide text-primary-text">{plan.name}</h3>
-                  <p className="text-2xl font-black tracking-tight text-white">{plan.price}</p>
-                </div>
-                
-                <div className="text-xs bg-bg-page/50 border border-divider/30 p-3 rounded text-center font-extrabold text-primary">
-                  {plan.credits} Art Credits
-                </div>
-
-                <p className="text-xs text-secondary-text leading-relaxed font-medium min-h-[3rem]">{plan.description}</p>
-                
-                <ul className="space-y-2 border-t border-divider/30 pt-4 text-xs font-semibold text-secondary-text">
-                  <li className="flex items-center gap-2">
-                    <FaCheck className="text-primary text-[10px]" />
-                    <span>Dynamic aspect ratios</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <FaCheck className="text-primary text-[10px]" />
-                    <span>HD image downloads</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <FaCheck className="text-primary text-[10px]" />
-                    <span>No subscription required</span>
-                  </li>
-                </ul>
-              </div>
-
-              <button
-                onClick={() => handleCheckout(plan.id)}
-                disabled={loadingPlan !== null}
-                className={`w-full py-3 rounded-full text-xs font-bold transition-all shadow-md cursor-pointer select-none active:scale-[0.98] ${
-                  plan.popular ? "bg-primary text-white hover:bg-primary-hover shadow-primary/15" : "bg-bg-page hover:bg-bg-card text-primary-text border border-divider"
-                }`}
-              >
-                {loadingPlan === plan.id ? "Loading checkout..." : "Purchase Credits"}
-              </button>
-            </div>
-          ))}
-        </div>
-      </main>
-
-      <Footer />
-    </div>
-  );
+      const response = await fetch("/api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ planId }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      const checkout = new window.Razorpay({
+        key: data.keyId, subscription_id: data.subscriptionId, name: "ListifyAI", description: `${data.plan.name} monthly subscription`,
+        prefill: { name: session.user.name || "", email: session.user.email || "" }, theme: { color: "#34d399" },
+        handler: async (payment) => {
+          const verify = await fetch("/api/billing/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payment) });
+          if (!verify.ok) return toast.error("Payment verification failed");
+          await update(); toast.success("Subscription started. Credits will appear after payment confirmation.");
+        }, modal: { ondismiss: () => setLoading("") },
+      });
+      checkout.open();
+    } catch (error) { toast.error(error.message || "Checkout failed"); setLoading(""); }
+  }
+  return <main className="min-h-screen bg-[#07110e] px-5 py-16 text-white"><Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive"/><Toaster position="top-right"/><div className="mx-auto max-w-6xl"><div className="text-center"><p className="text-xs font-black uppercase tracking-[.2em] text-emerald-400">Simple monthly pricing</p><h1 className="mt-3 text-4xl font-black sm:text-5xl">More listings. Less repetitive work.</h1><p className="mx-auto mt-4 max-w-xl text-zinc-400">Credits renew after each successful monthly payment. One complete listing uses one credit.</p></div><div className="mt-12 grid gap-6 md:grid-cols-3">{plans.map(plan=><article key={plan.id} className={`relative rounded-3xl border p-7 ${plan.popular ? "border-emerald-400 bg-emerald-400/10" : "border-zinc-800 bg-zinc-950"}`}>{plan.popular&&<span className="absolute -top-3 left-6 rounded-full bg-emerald-400 px-3 py-1 text-xs font-black text-emerald-950">MOST POPULAR</span>}<h2 className="text-xl font-black">{plan.name}</h2><p className="mt-2 text-sm text-zinc-400">{plan.note}</p><p className="mt-7 text-4xl font-black">₹{plan.price.toLocaleString("en-IN")}<span className="text-sm font-medium text-zinc-500"> /month</span></p><div className="my-7 border-y border-zinc-800 py-5"><p className="font-black text-emerald-300">{plan.credits} listing credits/month</p></div><ul className="space-y-3 text-sm text-zinc-300">{["All marketplaces","Titles, bullets and descriptions","SEO keywords and social caption","Generation history"].map(x=><li key={x} className="flex gap-2"><FiCheck className="mt-0.5 text-emerald-400"/>{x}</li>)}</ul><button onClick={()=>subscribe(plan.id)} disabled={Boolean(loading)} className={`mt-8 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-black ${plan.popular ? "bg-emerald-400 text-emerald-950" : "bg-white text-zinc-950"}`}>{loading===plan.id?<><FiLoader className="animate-spin"/>Opening…</>:session?"Subscribe with Razorpay":"Sign in to subscribe"}</button></article>)}</div></div></main>;
 }

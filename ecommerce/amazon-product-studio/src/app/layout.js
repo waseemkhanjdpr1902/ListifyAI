@@ -7,8 +7,8 @@ import config from "@/lib/config";
 const font = Outfit({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "Amazon Product Studio - generate photorealistic product ad listings",
-  description: "Generate beautiful, professional ad images featuring your product on various premium backdrops.",
+  title: "ListifyAI — Product listings that sell",
+  description: "Create marketplace-ready titles, descriptions, bullets and SEO keywords for Amazon, Flipkart, Meesho and Shopify.",
 };
 
 export default function RootLayout({ children }) {
@@ -16,7 +16,7 @@ export default function RootLayout({ children }) {
 
   return (
     <html lang="en" className="h-full w-full" data-theme={theme}>
-      <body className={`${font.className} h-full w-full flex flex-col antialiased bg-bg-page text-primary-text overflow-hidden`}>
+      <body className={`${font.className} min-h-full w-full flex flex-col antialiased bg-bg-page text-primary-text`}>
         <Providers>
           <Navbar />
           <div className="flex-1 flex flex-col overflow-hidden min-h-0">
@@ -27,4 +27,3 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
-

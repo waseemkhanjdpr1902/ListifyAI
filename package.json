@@ -1,0 +1,10 @@
+{
+  "name": "listifyai",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix ecommerce/amazon-product-studio run dev",
+    "build": "npm --prefix ecommerce/amazon-product-studio run build",
+    "start": "npm --prefix ecommerce/amazon-product-studio run start"
+  }
+}

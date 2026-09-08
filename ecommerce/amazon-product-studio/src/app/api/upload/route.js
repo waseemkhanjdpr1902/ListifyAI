@@ -19,14 +19,11 @@ export async function POST(req) {
     }
 
     const apiKey = config.ai.apiKey;
-    console.log("ENV KEYS:", Object.keys(process.env).filter(k => k.includes("API") || k.includes("KEY") || k.includes("SECRET")));
-    console.log("RESOLVED API KEY:", apiKey ? (apiKey.slice(0, 5) + '...') : 'undefined');
     if (!apiKey) {
       return new NextResponse("API Key not configured", { status: 500 });
     }
 
     console.log(`[UPLOAD_API] File details: name=${file.name}, size=${file.size}, type=${file.type}`);
-    console.log(`[UPLOAD_API] Using API Key: ${apiKey ? (apiKey.slice(0, 5) + '...') : 'undefined'}`);
 
     // Prepare for MuAPI
     const muapiFormData = new FormData();

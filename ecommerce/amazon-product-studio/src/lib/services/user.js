@@ -24,19 +24,13 @@ export const UserService = {
   async deductCredits(userId, amount) {
     if (amount <= 0) return;
     
-    // Check if the user has enough credits
-    const currentCredits = await this.getCredits(userId);
-    if (currentCredits < amount) {
+    const result = await prisma.user.updateMany({
+      where: { id: userId, credits: { gte: amount } },
+      data: { credits: { decrement: amount } },
+    });
+    if (result.count !== 1) {
       throw new Error("Insufficient credits available");
     }
-
-    return await prisma.user.update({
-      where: { id: userId },
-      data: {
-        credits: {
-          decrement: amount,
-        },
-      },
-    });
+    return result;
   },
 };
